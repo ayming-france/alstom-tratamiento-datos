@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tratamiento de datos - Alstom España</title>
+  <!-- Anexo a la propuesta Alstom, pedido tras la presentación : prouver que 3 000 salariés
+       sont un volume courant pour Ayming. Source : "Data engineering process.pptx" (Downloads,
+       2026-09-18). Les textes en rouge (.todo) sont des points à confirmer avant envoi.
+       Images hébergées dans ayming-france/assets, imagery/es-cotizaciones-sociales/tratamiento-datos/ (masquées du portail).
+       Déployé sur ayming-france/alstom-tratamiento-datos, hors hub et non suivi. -->
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://ayming-france.github.io/assets/engine/slides.css">
+  <style>
+    .slide-inner > .slide-title + .content-paragraph { margin-top: -34px; margin-bottom: 30px; }
+    .lead-tight { font-size: 13.5px; }
+    .todo { color: #d62828 !important; font-weight: var(--weight-bold); }
+
+    /* Cartes blanches communes (même famille que le deck Alstom). */
+    .dt-card { background: var(--bg-white); border: 1px solid #e9f0f5; border-radius: var(--radius-xl); box-shadow: 0 6px 24px rgba(var(--blue-dark-rgb), .06); text-align: left; }
+    .dt-card h4 { font-size: 15px; color: var(--blue-dark); font-weight: var(--weight-bold); margin: 0 0 var(--space-10); display: flex; align-items: center; gap: var(--space-10); }
+    .dt-ic { width: 36px; height: 36px; border-radius: var(--radius-circle); background: var(--blue-primary); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .dt-ic svg { width: 18px; height: 18px; color: var(--bg-white); }
+    .dt-list { list-style: none; margin: 0; padding: 0; text-align: left; }
+    .dt-list li { position: relative; padding-left: var(--space-16); margin-bottom: var(--space-8); font-size: 12.5px; color: #4a5b68; line-height: 1.45; text-align: left; }
+    .dt-list li::before { content: ''; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: var(--radius-circle); background: var(--blue-primary); }
+    .dt-list li:last-child { margin-bottom: 0; }
+    .dt-list strong { color: var(--blue-dark); }
+
+    /* Slide volumen : tableau en lignes, ligne RR. HH. mise en avant. */
+    .vol-table { width: 100%; max-width: 1120px; margin: 0 auto; border-collapse: separate; border-spacing: 0 8px; }
+    .vol-table th { font-size: var(--font-12); text-transform: uppercase; letter-spacing: .06em; color: #6b7d8a; font-weight: var(--weight-bold); text-align: left; padding: 0 var(--space-20); }
+    .vol-table th.num { text-align: right; }
+    .vol-table td { background: #f7fbfd; padding: var(--space-14) var(--space-20); font-size: var(--font-14); color: #3d4d5a; text-align: left; vertical-align: middle; }
+    .vol-table td:first-child { border-radius: var(--radius-lg) 0 0 var(--radius-lg); font-weight: var(--weight-bold); color: var(--blue-dark); width: 26%; }
+    .vol-table td:last-child { border-radius: 0 var(--radius-lg) var(--radius-lg) 0; text-align: right; font-size: 26px; font-weight: var(--weight-bold); color: var(--blue-dark); white-space: nowrap; width: 22%; }
+    .vol-table tr.hl td { background: var(--blue-dark); color: rgba(255,255,255,.85); }
+    .vol-table tr.hl td:first-child, .vol-table tr.hl td:last-child { color: var(--bg-white); }
+    .vol-unit { font-size: var(--font-12); color: #6b7d8a; text-align: right; max-width: 1120px; margin: 0 auto; }
+    .vol-alstom { max-width: 1120px; margin: var(--space-18) auto 0; display: flex; align-items: center; gap: var(--space-14); background: linear-gradient(90deg, rgba(0,174,239,.10), rgba(0,176,139,.10)); border-radius: var(--radius-lg); padding: var(--space-14) var(--space-20); text-align: left; font-size: var(--font-14); color: var(--blue-dark); line-height: 1.45; }
+    .vol-alstom .dt-ic { background: var(--gradient-green-end); }
+
+    /* Seguridad 1 : cinq thèmes en lignes, titre à gauche, puces en deux colonnes libres. */
+    .sec-rows { display: flex; flex-direction: column; gap: var(--space-8); max-width: 1200px; margin: 0 auto; }
+    .sec-row { display: grid; grid-template-columns: 190px 1fr; gap: var(--space-20); align-items: center; padding: var(--space-10) var(--space-18); }
+    .sec-row h4 { margin: 0; font-size: 14px; }
+    .sec-row .dt-ic { width: 32px; height: 32px; }
+    .sec-row .dt-list { column-count: 2; column-gap: var(--space-32); }
+    .sec-row .dt-list li { break-inside: avoid; margin-bottom: 5px; font-size: 12px; line-height: 1.4; }
+
+    /* Seguridad 2 : trois colonnes + bandeau ISO et échange sécurisé. */
+    .sec-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-18); max-width: 1200px; margin: 0 auto; }
+    .sec-3col .dt-card { padding: var(--space-18) var(--space-20); }
+    .sec-band { max-width: 1200px; margin: var(--space-16) auto 0; display: grid; grid-template-columns: 1fr 1.4fr; gap: var(--space-18); }
+    .sec-band > div { display: flex; align-items: center; gap: var(--space-14); background: #f7fbfd; border-radius: var(--radius-lg); padding: var(--space-12) var(--space-18); text-align: left; }
+    .sec-band img { height: 52px; width: auto; }
+    .sec-band p { margin: 0; font-size: 12.5px; line-height: 1.45; color: #3d4d5a; text-align: left; }
+    .sec-band strong { color: var(--blue-dark); }
+
+    /* Certificaciones. */
+    .cert-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-20); max-width: 1180px; width: 100%; margin: 0 auto; }
+    .cert-card { padding: var(--space-24) var(--space-18); display: flex; flex-direction: column; align-items: center; gap: var(--space-12); text-align: center; }
+    .cert-logo { height: 132px; display: flex; align-items: center; justify-content: center; }
+    .cert-logo img { height: 132px; width: auto; }
+    .cert-logo img.cert-doc { height: auto; width: 100%; max-width: 210px; border-radius: 8px; box-shadow: 0 4px 14px rgba(var(--blue-dark-rgb), .12); }
+    .cert-card h4 { margin: 0; justify-content: center; }
+    .cert-card p { font-size: 13px; color: #4a5b68; line-height: 1.5; margin: 0; text-align: center; }
+
+    /* Editor de software : grille de noms de produits. */
+    .soft-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-16); max-width: 1160px; margin: 0 auto; }
+    .soft-grid .soft-logo { width: 210px; }
+    .soft-grid { width: 100%; }
+    .soft-logo { height: 140px; display: flex; align-items: center; justify-content: center; padding: var(--space-12); }
+    .soft-logo img { height: 96px; width: auto; max-width: 85%; object-fit: contain; }
+    /* Les PNG du PPT sont des pastilles rondes avec marge interne : on les agrandit pour égaler les SVG. */
+    .soft-logo img[src$=".png"] { height: 128px; }
+    .soft-logo img[src*="express"] { height: 104px; }
+    .soft-logo img[src*="checkup"] { height: 96px; }
+    .soft-logo img[src*="acciline"] { height: auto; width: 78%; }
+    .soft-foot { max-width: 1100px; margin: var(--space-22) auto 0; display: flex; justify-content: center; gap: 48px; }
+    .soft-foot div { display: flex; align-items: center; gap: var(--space-12); font-size: 13.5px; color: var(--blue-dark); text-align: left; line-height: 1.4; }
+
+    /* Ciclo de desarrollo : trois niveaux, Alstom au niveau 1. */
+    .lvl-grid { display: grid; grid-template-columns: 170px repeat(3, 1fr); gap: 0 var(--space-14); max-width: 1180px; margin: 0 auto; text-align: left; }
+    .lvl-head { padding: var(--space-16) var(--space-18); border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: #eef6fb; position: relative; }
+    .lvl-head .lvl-num { font-size: var(--font-12); font-weight: var(--weight-bold); color: var(--blue-primary); letter-spacing: .08em; text-transform: uppercase; }
+    .lvl-head h4 { font-size: 15px; color: var(--blue-dark); margin: 4px 0 0; line-height: 1.3; }
+    .lvl-head.is-alstom { background: var(--blue-dark); }
+    .lvl-head.is-alstom .lvl-num { color: #7fd6f7; }
+    .lvl-head.is-alstom h4 { color: var(--bg-white); }
+    .lvl-badge { position: absolute; top: -12px; right: 14px; background: var(--gradient-green-end); color: var(--bg-white); font-size: 11px; font-weight: var(--weight-bold); padding: 4px 10px; border-radius: 999px; letter-spacing: .04em; }
+    .lvl-label { font-size: var(--font-12); font-weight: var(--weight-bold); color: #6b7d8a; text-transform: uppercase; letter-spacing: .05em; padding: var(--space-12) 0; border-top: 1px solid #e9f0f5; display: flex; align-items: center; }
+    .lvl-cell { font-size: 13px; color: #3d4d5a; line-height: 1.45; padding: var(--space-12) var(--space-18); border-top: 1px solid #e9f0f5; background: var(--bg-white); }
+    .lvl-cell.is-alstom { background: #f3fafe; }
+    .lvl-cell strong { color: var(--blue-dark); }
+    .lvl-cell.big strong { font-size: 20px; }
+    .lvl-foot { max-width: 1180px; margin: var(--space-18) auto 0; font-size: 13.5px; color: var(--blue-dark); background: #f7fbfd; border-radius: var(--radius-lg); padding: var(--space-12) var(--space-20); text-align: left; line-height: 1.5; }
+
+
+    /* Flujo : schéma en trois colonnes, entrées Alstom > plateforme > résultats (inspiré d'un schéma d'orchestration). */
+    .fl-grid { display: grid; grid-template-columns: 262px 44px 160px 34px 1fr 44px 296px; gap: 0; max-width: 1200px; margin: 0 auto; align-items: center; text-align: left; }
+    .fl-grid > .fl-col { align-self: stretch; }
+    .fl-grid > .fl-col .fl-block { flex: 1; justify-content: center; }
+    .fl-join { align-self: stretch; position: relative; }
+    .fl-join svg { position: absolute; left: 0; width: 100%; top: 0; height: 100%; overflow: visible; }
+    .fl-join path { fill: none; stroke: #8ea5b6; stroke-width: 1.6; stroke-linejoin: round; }
+    .fl-tip { position: absolute; right: -1px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid #8ea5b6; transform: translateY(-50%); }
+    .fl-team { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; padding-top: 7px; border-top: 1px dashed #c9d8e3; }
+    .fl-col { display: flex; flex-direction: column; gap: var(--space-10); }
+    .fl-block { background: var(--bg-white); border: 1.5px solid #c9d8e3; border-radius: var(--radius-lg); box-shadow: 0 4px 16px rgba(var(--blue-dark-rgb), .05); padding: 6px; display: flex; flex-direction: column; gap: 5px; }
+    .fl-head { border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: var(--weight-bold); letter-spacing: .07em; text-transform: uppercase; color: var(--bg-white); text-align: center; }
+    .fl-in { background: var(--blue-dark); }
+    .fl-core { background: var(--blue-primary); }
+    .fl-out { background: var(--gradient-green-end); }
+    .fl-cell { background: #f5f9fb; border-radius: 7px; padding: 7px 10px; font-size: 12.5px; color: var(--blue-dark); font-weight: var(--weight-semibold); display: flex; align-items: center; justify-content: center; gap: 7px; text-align: center; line-height: 1.3; }
+    .fl-cell svg { width: 15px; height: 15px; color: var(--blue-primary); flex-shrink: 0; }
+    .fl-out ~ .fl-cell svg { color: var(--gradient-green-end); }
+    .fl-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .fl-note { font-weight: 400; font-size: 11.5px; color: #5a6b78; background: transparent; padding: 2px 8px; }
+    .fl-arrow { display: flex; align-items: center; justify-content: center; color: #9fb3c2; }
+    .fl-arrow svg { width: 20px; height: 20px; }
+    .fl-engine { padding: 6px; background: linear-gradient(135deg, rgba(0,174,239,.08), rgba(0,176,139,.08)); }
+    .fl-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .fl-steps.two { grid-template-columns: 1fr 1fr; }
+    .fl-steps span { background: var(--blue-primary); color: var(--bg-white); border-radius: 7px; padding: 7px 6px; font-size: 12px; font-weight: var(--weight-bold); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .fl-steps span svg { width: 14px; height: 14px; }
+    .fl-engine-body { background: var(--bg-white); border-radius: 8px; padding: var(--space-14) var(--space-10); text-align: center; }
+    .fl-engine-body p { margin: 0; text-align: center; }
+    .fl-engine-title { font-size: 19px; font-weight: var(--weight-bold); color: var(--blue-dark); }
+    .fl-engine-sub { font-size: 12.5px; color: #5a6b78; margin-top: 3px !important; }
+    .fl-engine-tools { font-size: 11.5px; margin-top: 6px !important; }
+    .fl-life { max-width: 1200px; margin: var(--space-16) auto 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 18px; background: #f7fbfd; border-radius: var(--radius-lg); padding: 10px 16px; font-size: 12px; color: var(--blue-dark); }
+    .fl-life span { display: inline-flex; align-items: center; gap: 6px; }
+    .fl-life svg { width: 14px; height: 14px; color: var(--blue-primary); }
+    .fl-life .todo svg { color: #d62828; }
+    .fl-life-label { font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: .07em; font-size: 11px; color: #6b7d8a; }
+    /* Testimonios : deux certificats côte à côte, tels quels. */
+    .testi-pair { display: flex; justify-content: center; align-items: center; gap: var(--space-34); }
+    .testi-pair img { max-height: 470px; max-width: 48%; width: auto; border: 1px solid #e9f0f5; border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(var(--blue-dark-rgb), .10); background: #fff; }
+
+    .slide[data-chapter="cover"] .cover-logo-sep { width: 1px; height: 32px; background: rgba(255,255,255,.4); }
+
+    .slide[data-chapter="gracias"] .slide-inner { max-width: none; width: min(42%, 620px); margin: 0 auto 0 max(0px, calc(25% - min(21%, 310px) - 40px)); }
+    .gracias-left { text-align: left; }
+    .gracias-logos { display: flex; align-items: center; gap: var(--space-16); margin-bottom: var(--space-34); }
+    .gracias-logos img { height: 40px; width: auto; display: block; }
+    .gracias-logos .gl-sep { font-size: var(--font-18); color: #c3ced6; }
+    .gracias-lead { font-size: 22px; font-weight: var(--weight-bold); color: var(--blue-dark); margin: 0 0 var(--space-22); }
+    .gc-row { display: flex; align-items: center; gap: var(--space-16); margin-bottom: var(--space-16); }
+    .gc-ic { width: 44px; height: 44px; border-radius: var(--radius-circle); flex-shrink: 0; background: var(--blue-primary); display: flex; align-items: center; justify-content: center; }
+    .gc-ic svg { width: 20px; height: 20px; color: var(--bg-white); }
+    .gc-text { font-size: var(--font-14); color: var(--blue-dark); font-weight: var(--weight-semibold); line-height: 1.35; }
+    .gc-sub { font-size: 12.5px; color: #5a6b78; font-weight: 400; margin-top: 2px; }
+    .gracias-photo { position: absolute; top: 0; right: 0; bottom: var(--banner-h); width: 50%; overflow: hidden; }
+    .gracias-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 35%; display: block; }
+  </style>
+</head>
+<body data-audience="client" data-no-partners>
+
+  <nav class="chapter-nav">
+    <div class="nav-section">
+      <div class="nav-section-title">Datos y seguridad</div>
+      <div class="nav-item active" data-slide="0"><span class="nav-item-number">01</span>Portada</div>
+      <div class="nav-item" data-slide="1"><span class="nav-item-number">02</span>Volumen de datos</div>
+      <div class="nav-item" data-slide="2"><span class="nav-item-number">03</span>Protecci&oacute;n</div>
+      <div class="nav-item" data-slide="3"><span class="nav-item-number">04</span>Cuentas, cloud e IA</div>
+      <div class="nav-item" data-slide="4"><span class="nav-item-number">05</span>Certificaciones</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Desarrollo y referencias</div>
+      <div class="nav-item" data-slide="5"><span class="nav-item-number">06</span>Software propio</div>
+      <div class="nav-item" data-slide="6"><span class="nav-item-number">07</span>Nivel 1</div>
+      <div class="nav-item" data-slide="7"><span class="nav-item-number">08</span>Recorrido de los datos</div>
+      <div class="nav-item" data-slide="8"><span class="nav-item-number">09</span>Testimonios</div>
+      <div class="nav-item" data-slide="12"><span class="nav-item-number">10</span>Gracias</div>
+    </div>
+  </nav>
+
+  <div class="slide-counter"></div>
+
+  <main class="presentation">
+
+  <section class="slide cover active" data-chapter="cover">
+    <div class="cover-layout">
+      <div class="cover-left">
+        <div class="cover-logo">
+          <img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming">
+          <span class="cover-logo-sep"></span>
+          <img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/alstom-logo-blanco.png" alt="Alstom">
+        </div>
+        <h1 class="cover-title">Tratamiento<br>de datos</h1>
+        <p class="cover-subtitle">C&oacute;mo Ayming trata y protege grandes vol&uacute;menes de datos confidenciales. Anexo a la propuesta para Alstom Espa&ntilde;a.</p>
+      </div>
+      <div class="cover-right">
+        <img class="cover-image" src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/alstom-le-creusot.jpg" alt="Planta de Alstom">
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-chapter="volumen">
+    <div class="slide-inner">
+      <h1 class="slide-title">Volumen de datos tratado cada mes</h1>
+      <p class="content-paragraph lead-tight">Volumen t&iacute;pico por l&iacute;nea de servicio, en equivalente de p&aacute;ginas A4 al mes.</p>
+      <table class="vol-table">
+        <thead><tr><th>Tipo de servicio</th><th>Informaci&oacute;n tratada</th><th class="num">P&aacute;ginas / mes</th></tr></thead>
+        <tbody>
+          <tr><td>Fiscalidad local</td><td>Informaci&oacute;n fiscal, ingresos, actividades confidenciales de la empresa</td><td>24&nbsp;000</td></tr>
+          <tr><td>Cr&eacute;ditos fiscales</td><td>Invenciones e informaci&oacute;n de I+D, informaci&oacute;n de salud</td><td>1&nbsp;200&nbsp;000</td></tr>
+          <tr class="hl"><td>Costes de RR.&nbsp;HH.</td><td>N&uacute;meros de la Seguridad Social, informaci&oacute;n de n&oacute;mina, informaci&oacute;n de salud</td><td>600&nbsp;000</td></tr>
+          <tr><td>Ingresos hospitalarios</td><td>Informaci&oacute;n de salud, datos personales de salud de pacientes</td><td>10&nbsp;000</td></tr>
+        </tbody>
+      </table>
+      <div class="vol-alstom">
+        <span class="dt-ic"><i data-lucide="train-front"></i></span>
+        <span><strong>Alstom Espa&ntilde;a, 3&nbsp;000 empleados.</strong> Para nuestros equipos de RR.&nbsp;HH., es un proyecto de nivel&nbsp;1, que se trata con nuestras herramientas de an&aacute;lisis est&aacute;ndar.</span>
+      </div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="seguridad-1">
+    <div class="slide-inner">
+      <h1 class="slide-title">Protecci&oacute;n de los datos y de la infraestructura</h1>
+      <div class="sec-rows">
+        <div class="dt-card sec-row">
+          <h4><span class="dt-ic"><i data-lucide="lock"></i></span>Confidencialidad</h4>
+          <ul class="dt-list">
+            <li><strong>Solo los empleados autorizados pueden acceder a la informaci&oacute;n confidencial.</strong> Los derechos de acceso se conceden y se revisan mediante procesos rigurosos.</li>
+            <li>Todos los datos personales se tratan conforme al RGPD.</li>
+            <li>Nuestros equipos reciben formaci&oacute;n peri&oacute;dica sobre buenas pr&aacute;cticas de privacidad y seguridad.</li>
+          </ul>
+        </div>
+        <div class="dt-card sec-row">
+          <h4><span class="dt-ic"><i data-lucide="key-round"></i></span>Cifrado</h4>
+          <ul class="dt-list">
+            <li><strong>Todos los datos gestionados</strong> por Ayming en AWS, en Azure y en centros de datos <strong>se cifran sistem&aacute;ticamente</strong>, tanto en tr&aacute;nsito como en reposo, con algoritmos de cifrado reconocidos. Esto asegura una protecci&oacute;n s&oacute;lida frente a cualquier acceso o uso no autorizado.</li>
+            <li>Todos los discos duros internos de <strong>los port&aacute;tiles de nuestros empleados est&aacute;n cifrados</strong>.</li>
+            <li>Los ficheros est&aacute;n protegidos mediante una trazabilidad completa de su uso y de sus modificaciones.</li>
+          </ul>
+        </div>
+        <div class="dt-card sec-row">
+          <h4><span class="dt-ic"><i data-lucide="shield-check"></i></span>Ciberdefensa</h4>
+          <ul class="dt-list">
+            <li><strong>Servidores y PC est&aacute;n protegidos por soluciones EDR y antivirus.</strong></li>
+            <li>Expertos externos realizan <strong>pruebas de penetraci&oacute;n</strong> peri&oacute;dicas para evaluar la seguridad de nuestras aplicaciones y datos, con recomendaciones de mejora continua.</li>
+            <li>Hemos contratado <strong>una unidad externa de respuesta a incidentes</strong>, lista para intervenir de inmediato si nuestros equipos detectan cualquier actividad sospechosa en nuestra infraestructura.</li>
+          </ul>
+        </div>
+        <div class="dt-card sec-row">
+          <h4><span class="dt-ic"><i data-lucide="server"></i></span>Explotaci&oacute;n</h4>
+          <ul class="dt-list">
+            <li>Los dispositivos de copia de seguridad aseguran la integridad y la restauraci&oacute;n r&aacute;pida de los datos tras un incidente. Los procedimientos de restauraci&oacute;n se prueban con regularidad <strong>para preservar la integridad de los datos</strong>.</li>
+            <li><strong>Los servidores de Ayming los gestionan los equipos de TI internos de Ayming.</strong></li>
+            <li>Todos nuestros servidores funcionan con sistemas operativos adquiridos legalmente a nuestros proveedores y se mantienen al d&iacute;a con los parches de seguridad.</li>
+          </ul>
+        </div>
+        <div class="dt-card sec-row">
+          <h4><span class="dt-ic"><i data-lucide="network"></i></span>Redes</h4>
+          <ul class="dt-list">
+            <li>Nuestros servidores con conexiones externas est&aacute;n instalados en una DMZ.</li>
+            <li>Todos nuestros centros, entornos cloud y centros de datos est&aacute;n protegidos por <strong>cortafuegos robustos</strong>, configurados para detectar y bloquear intrusiones. Las interconexiones entre nuestros centros se aseguran mediante VPN cifradas.</li>
+            <li><strong>Solo los equipos inform&aacute;ticos de Ayming pueden conectarse a nuestra red interna.</strong></li>
+            <li>Los usuarios solo pueden acceder a la VPN con dispositivos suministrados y gestionados por Ayming. Para obtener la autorizaci&oacute;n, se realizan varios controles de seguridad en el momento de la conexi&oacute;n.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="seguridad-2">
+    <div class="slide-inner">
+      <h1 class="slide-title">Cuentas, cloud e inteligencia artificial</h1>
+      <div class="sec-3col">
+        <div class="dt-card">
+          <h4><span class="dt-ic"><i data-lucide="user-cog"></i></span>Cuentas de usuario y de m&aacute;quina</h4>
+          <ul class="dt-list">
+            <li>El acceso a los datos y aplicaciones alojados en nuestros servidores se concede mediante autorizaciones emitidas por el responsable de la misi&oacute;n y su jerarqu&iacute;a.</li>
+            <li>Las cuentas de usuario son personales y <strong>las contrase&ntilde;as cumplen las recomendaciones de complejidad</strong>. Caducan autom&aacute;ticamente a los 180&nbsp;d&iacute;as y se conserva un historial de las 24 &uacute;ltimas para impedir su reutilizaci&oacute;n.</li>
+            <li><strong>Los PC de nuestros empleados los suministra Ayming</strong> y se gestionan internamente. Los usuarios <strong>no tienen derechos de administrador en sus PC</strong>, salvo cuando se aplica una excepci&oacute;n documentada y validada.</li>
+            <li>Las cuentas con privilegios de administrador o de servicio est&aacute;n sujetas a medidas de seguridad reforzadas.</li>
+          </ul>
+        </div>
+        <div class="dt-card">
+          <h4><span class="dt-ic"><i data-lucide="cloud"></i></span>Cloud</h4>
+          <ul class="dt-list">
+            <li>Nuestra infraestructura cloud est&aacute; dise&ntilde;ada para la m&aacute;xima resiliencia y una alta disponibilidad, <strong>con una recuperaci&oacute;n r&aacute;pida del servicio en caso de fallo o desastre</strong>.</li>
+            <li>Los proveedores cloud cumplen las normas internacionales de seguridad m&aacute;s estrictas, como ISO&nbsp;27001:2022, SOC&nbsp;2 tipo&nbsp;2 y HDS, as&iacute; como marcos regulatorios como el RGPD y PIPEDA.</li>
+            <li>Ayming ha implantado <strong>mecanismos estrictos de separaci&oacute;n</strong> por entorno y por aplicaci&oacute;n.</li>
+            <li>Las tecnolog&iacute;as y servicios que utilizamos aseguran que los datos se alojan dentro de la <strong>Uni&oacute;n Europea</strong> y que <strong>el proveedor cloud nunca tiene acceso a los datos</strong> que tratamos.</li>
+          </ul>
+        </div>
+        <div class="dt-card">
+          <h4><span class="dt-ic"><i data-lucide="brain-circuit"></i></span>Inteligencia artificial</h4>
+          <ul class="dt-list">
+            <li>Mantenemos <strong>un control de extremo a extremo de nuestras soluciones de IA</strong>, alojadas en nuestras instancias privadas.</li>
+            <li>Al tratar datos personales o confidenciales, nos aseguramos de que los modelos de lenguaje que usamos no aprendan de sus datos ni de su saber hacer.</li>
+            <li><strong>Ayming ha adoptado una pol&iacute;tica de IA que regula su uso</strong>, disponible bajo petici&oacute;n.</li>
+            <li><strong>La trazabilidad es un pilar de nuestra pol&iacute;tica de IA.</strong> Cada resultado de nuestros modelos es totalmente trazable y verificable, por transparencia.</li>
+            <li>Damos gran importancia a la cita y a la verificaci&oacute;n de las fuentes.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="sec-band">
+        <div><img src="https://ayming-france.github.io/assets/imagery/certifications/afaq-iso-27001.png" alt="ISO 27001"><p>Ayming Francia est&aacute; certificada <strong>ISO&nbsp;27001:2022</strong> para el conjunto de sus actividades en Francia.</p></div>
+        <div><span class="dt-ic"><i data-lucide="folder-lock"></i></span><p><strong>Para nuestros clientes, proponemos</strong> la transferencia segura de datos con herramientas como SFTP o a trav&eacute;s de nuestras plataformas seguras en l&iacute;nea (conexi&oacute;n https), que permiten compartir e intercambiar informaci&oacute;n en un espacio dedicado.</p></div>
+      </div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="certificaciones">
+    <div class="slide-inner">
+      <h1 class="slide-title">Nuestras certificaciones</h1>
+      <p class="content-paragraph lead-tight">Una seguridad de la informaci&oacute;n verificada por organismos externos.</p>
+      <div class="cert-grid">
+        <div class="cert-card">
+          <div class="cert-logo"><img src="https://ayming-france.github.io/assets/imagery/certifications/afaq-iso-27001.png" alt="ISO 27001"></div>
+          <h4>ISO/IEC&nbsp;27001:2022</h4>
+          <p>Sistema de gesti&oacute;n de la seguridad de la informaci&oacute;n. Ayming Francia est&aacute; certificada para el conjunto de sus actividades en Francia.</p>
+        </div>
+        <div class="cert-card">
+          <div class="cert-logo"><img src="https://ayming-france.github.io/assets/imagery/certifications/afaq-iso-9001.png" alt="ISO 9001"></div>
+          <h4>ISO&nbsp;9001:2015</h4>
+          <p>Sistema de gesti&oacute;n de la calidad, para la consultor&iacute;a de gesti&oacute;n y la edici&oacute;n y venta de software de gesti&oacute;n.</p>
+        </div>
+        <div class="cert-card">
+          <div class="cert-logo"><img src="https://ayming-france.github.io/assets/imagery/certifications/afaq-hds.png" alt="HDS"></div>
+          <h4>HDS</h4>
+          <p>Alojamiento de datos de salud certificado, a trav&eacute;s de Ayming Digital.</p>
+        </div>
+        <div class="cert-card">
+          <div class="cert-logo"><img class="cert-doc" src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/cybervadis-2025.png" alt="Certificado CyberVadis"></div>
+          <h4>CyberVadis Gold</h4>
+          <p>Evaluaci&oacute;n de ciberseguridad: 900/1000, nivel Mature. <span class="todo">[Certificado 2025 caducado el 26 ene 2026, renovaci&oacute;n a obtener]</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="software">
+    <div class="slide-inner">
+      <h1 class="slide-title">Nuestras soluciones digitales</h1>
+      <p class="content-paragraph lead-tight">Desarrolladas y operadas por nuestros propios equipos.</p>
+      <div class="soft-grid">
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/offre-digital/logos/acciline-logo.svg" alt="Acciline+ by Ayming Digital"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/logo-recover.png" alt="Ayming Recover"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/offre-digital/logos/ayming-collecte-vertical.svg" alt="Ayming Collect"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/offre-digital/logos/ayming-drive-vertical.svg" alt="Ayming Drive"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/logo-express.png" alt="Ayming Express"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/offre-digital/logos/ayming-map-vertical.svg" alt="Ayming Map"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/logo-proximity.png" alt="Ayming Proximity"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/logo-academy.png" alt="Ayming Academy"></div>
+        <div class="dt-card soft-logo"><img src="https://ayming-france.github.io/assets/logos/solutions/ayming-checkup/ayming-checkup-colour-vertical.png" alt="Ayming Checkup"></div>
+      </div>
+      <div class="soft-foot">
+        <div><span class="dt-ic"><i data-lucide="code-xml"></i></span>Equipos de desarrollo propios</div>
+        <div><span class="dt-ic"><i data-lucide="database"></i></span>Analistas de datos integrados en los proyectos</div>
+        <div><span class="dt-ic"><i data-lucide="building-2"></i></span>Aplicaciones abiertas a nuestros clientes</div>
+      </div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="ciclo">
+    <div class="slide-inner">
+      <h1 class="slide-title">Ciclo de desarrollo de datos en RR.&nbsp;HH.</h1>
+      <p class="content-paragraph lead-tight">El nivel depende del grado de industrializaci&oacute;n de la soluci&oacute;n, no del volumen de datos de un cliente.</p>
+      <div class="lvl-grid">
+        <div></div>
+        <div class="lvl-head is-alstom"><span class="lvl-badge">Alstom</span><div class="lvl-num">Nivel 1</div><h4>Herramientas de mercado personalizadas</h4></div>
+        <div class="lvl-head"><div class="lvl-num">Nivel 2</div><h4>Soluciones internas de volumen medio</h4></div>
+        <div class="lvl-head"><div class="lvl-num">Nivel 3</div><h4>Soluciones de gran volumen</h4></div>
+
+        <div class="lvl-label">Uso</div>
+        <div class="lvl-cell is-alstom">Interno, por proyecto de cliente</div>
+        <div class="lvl-cell">Interno</div>
+        <div class="lvl-cell">Aplicaci&oacute;n accesible al cliente</div>
+
+        <div class="lvl-label">Desarrollo</div>
+        <div class="lvl-cell is-alstom">Herramientas de mercado con personalizaci&oacute;n</div>
+        <div class="lvl-cell">Ciclo &aacute;gil, con un fuerte apoyo de analistas de datos</div>
+        <div class="lvl-cell">Proceso de desarrollo formal: ergonom&iacute;a, experiencia de cliente</div>
+
+        <div class="lvl-label">Herramientas</div>
+        <div class="lvl-cell is-alstom todo">Databricks, Zen DSN (lectura RED) [a confirmar]</div>
+        <div class="lvl-cell todo">[herramientas a nombrar]</div>
+        <div class="lvl-cell">Ayming&nbsp;Recover, Ayming&nbsp;Collect</div>
+
+        <div class="lvl-label">&Aacute;mbito</div>
+        <div class="lvl-cell is-alstom">Menos de 30 clientes al a&ntilde;o, <span class="todo">[umbral por cliente a definir]</span></div>
+        <div class="lvl-cell">Uso continuo durante 2&nbsp;a&ntilde;os</div>
+        <div class="lvl-cell">Operaci&oacute;n continua durante varios a&ntilde;os</div>
+
+        <div class="lvl-label">Puesta en marcha</div>
+        <div class="lvl-cell is-alstom big"><strong>1 semana</strong></div>
+        <div class="lvl-cell big"><strong>3 meses</strong></div>
+        <div class="lvl-cell big"><strong>2 a&ntilde;os</strong></div>
+      </div>
+      <p class="lvl-foot"><strong>Para Alstom,</strong> los datos de 3&nbsp;000 empleados se tratan con nuestras herramientas de nivel&nbsp;1, operativas en una semana.</p>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="flujo">
+    <div class="slide-inner">
+      <h1 class="slide-title">El recorrido de sus datos</h1>
+      <p class="content-paragraph lead-tight">De los ficheros de Alstom a los resultados, en un circuito cerrado y trazable.</p>
+      <div class="fl-grid">
+        <div class="fl-col">
+          <div class="fl-block">
+            <div class="fl-head fl-in">Estructura</div>
+            <div class="fl-cell"><i data-lucide="building-2"></i>Entidades, centros y CCC</div>
+            <div class="fl-cell"><i data-lucide="users"></i>Maestro hist&oacute;rico de empleados</div>
+          </div>
+          <div class="fl-block">
+            <div class="fl-head fl-in">N&oacute;mina y cotizaci&oacute;n</div>
+            <div class="fl-cell"><i data-lucide="file-spreadsheet"></i>Extracto de n&oacute;mina, 4 a&ntilde;os</div>
+            <div class="fl-pair"><div class="fl-cell"><i data-lucide="file-text"></i>RLC</div><div class="fl-cell"><i data-lucide="calculator"></i>Bases del SLD</div></div>
+          </div>
+          <div class="fl-block">
+            <div class="fl-head fl-in">IT y Mutuas</div>
+            <div class="fl-cell"><i data-lucide="stethoscope"></i>Prestaciones en pago delegado</div>
+            <div class="fl-pair"><div class="fl-cell"><i data-lucide="handshake"></i>Convenios</div><div class="fl-cell"><i data-lucide="file-text"></i>FIE / FIER</div></div>
+          </div>
+        </div>
+
+        <div class="fl-join"><svg viewBox="0 0 40 300" preserveAspectRatio="none"><path d="M0 50 H20 V250 H0 M0 150 H40" vector-effect="non-scaling-stroke"/></svg><span class="fl-tip" style="top:50%"></span></div>
+
+        <div class="fl-block fl-share">
+          <div class="fl-head fl-core">Recepci&oacute;n segura</div>
+          <div class="fl-cell"><i data-lucide="folder-lock"></i>Ayming&nbsp;Share</div>
+          <div class="fl-cell"><i data-lucide="lock"></i>SFTP</div>
+          <div class="fl-cell fl-note">Espacio dedicado a la misi&oacute;n</div>
+        </div>
+
+        <div class="fl-join fl-link"><svg viewBox="0 0 40 300" preserveAspectRatio="none"><path d="M0 150 H40" vector-effect="non-scaling-stroke"/></svg><span class="fl-tip" style="top:50%"></span></div>
+
+        <div class="fl-block fl-engine">
+          <div class="fl-steps"><span><i data-lucide="list-filter"></i>Normalizar</span><span><i data-lucide="git-merge"></i>Cruzar</span><span><i data-lucide="scan-search"></i>Controlar</span></div>
+          <div class="fl-engine-body">
+            <p class="fl-engine-title">Plataforma de datos Ayming</p>
+            <p class="fl-engine-sub">Nivel&nbsp;1, operativa en 1&nbsp;semana</p>
+            <p class="fl-engine-tools todo">Databricks, Zen DSN (lectura RED) [a confirmar]</p>
+          </div>
+          <div class="fl-steps two"><span><i data-lucide="sigma"></i>Cuantificar</span><span><i data-lucide="file-check-2"></i>Documentar</span></div>
+          <div class="fl-team">
+            <div class="fl-pair"><div class="fl-cell"><i data-lucide="briefcase"></i>Consultores</div><div class="fl-cell"><i data-lucide="database"></i>Analistas de datos</div></div>
+            <div class="fl-cell fl-note">Equipo de la misi&oacute;n, acceso autorizado por su responsable</div>
+          </div>
+        </div>
+
+        <div class="fl-join fl-fan"><svg viewBox="0 0 40 300" preserveAspectRatio="none"><path d="M0 150 H20 M40 50 H20 V250 H40" vector-effect="non-scaling-stroke"/></svg><span class="fl-tip" style="top:16.67%"></span><span class="fl-tip" style="top:50%"></span><span class="fl-tip" style="top:83.33%"></span></div>
+
+        <div class="fl-col">
+          <div class="fl-block">
+            <div class="fl-head fl-out">Diagn&oacute;stico</div>
+            <div class="fl-cell"><i data-lucide="file-search"></i>Informe de evaluaci&oacute;n jur&iacute;dica y t&eacute;cnica</div>
+            <div class="fl-cell"><i data-lucide="triangle-alert"></i>Resumen de riesgos</div>
+          </div>
+          <div class="fl-block">
+            <div class="fl-head fl-out">Cuantificaci&oacute;n</div>
+            <div class="fl-cell"><i data-lucide="chart-column"></i>Informe de revisi&oacute;n de cotizaciones</div>
+            <div class="fl-cell"><i data-lucide="list-checks"></i>Listado de regularizaciones</div>
+          </div>
+          <div class="fl-block">
+            <div class="fl-head fl-out">Recuperaci&oacute;n</div>
+            <div class="fl-cell"><i data-lucide="scale"></i>Escritos jur&iacute;dicos</div>
+            <div class="fl-cell"><i data-lucide="receipt"></i>Seguimiento de reembolsos</div>
+          </div>
+        </div>
+      </div>
+      <div class="fl-life">
+        <span class="fl-life-label">Ciclo de vida</span>
+        <span><i data-lucide="map-pin"></i>Alojamiento en la UE</span>
+        <span><i data-lucide="key-round"></i>Cifrado en tr&aacute;nsito y en reposo</span>
+        <span><i data-lucide="history"></i>Trazabilidad completa</span>
+        <span class="todo"><i data-lucide="archive"></i>Conservaci&oacute;n: [plazo a confirmar]</span>
+        <span class="todo"><i data-lucide="trash-2"></i>Destrucci&oacute;n al cierre: [procedimiento a confirmar]</span>
+      </div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="testimonios">
+    <div class="slide-inner">
+      <h1 class="slide-title">Testimonios de clientes en Espa&ntilde;a</h1>
+      <div class="testi-pair"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-1.png" alt="Certificado de cliente"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-2.png" alt="Certificado de cliente"></div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="testimonios">
+    <div class="slide-inner">
+      <h1 class="slide-title">Testimonios de clientes en Espa&ntilde;a</h1>
+      <div class="testi-pair"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-3.png" alt="Certificado de cliente"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-4.png" alt="Certificado de cliente"></div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="testimonios">
+    <div class="slide-inner">
+      <h1 class="slide-title">Testimonios de clientes en Espa&ntilde;a</h1>
+      <div class="testi-pair"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-5.png" alt="Certificado de cliente"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-6.png" alt="Certificado de cliente"></div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="testimonios">
+    <div class="slide-inner">
+      <h1 class="slide-title">Testimonios de clientes en Espa&ntilde;a</h1>
+      <div class="testi-pair"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-7.png" alt="Certificado de cliente"><img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/tratamiento-datos/testimonio-8.png" alt="Certificado de cliente"></div>
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  <section class="slide" data-chapter="gracias">
+    <div class="slide-inner">
+        <div class="gracias-left">
+          <div class="gracias-logos">
+            <img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming">
+            <span class="gl-sep">&times;</span>
+            <img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/clientes/alstom.png" alt="Alstom">
+          </div>
+          <p class="gracias-lead">Gracias.</p>
+          <div class="gc-row">
+            <div class="gc-ic"><i data-lucide="globe"></i></div>
+            <div class="gc-text">www.ayming.com</div>
+          </div>
+          <div class="gc-row">
+            <div class="gc-ic"><i data-lucide="mail"></i></div>
+            <div class="gc-text">Olivier Meynard<div class="gc-sub">omeynard@ayming.com</div></div>
+          </div>
+          <div class="gc-row">
+            <div class="gc-ic"><i data-lucide="map-pin"></i></div>
+            <div class="gc-text">Ayming España<div class="gc-sub">Paseo de la Castellana 91, planta 13, 28046 Madrid</div></div>
+          </div>
+        </div>
+    </div>
+    <div class="gracias-photo">
+      <img src="https://ayming-france.github.io/assets/imagery/es-cotizaciones-sociales/alstom-tecnica-tren.jpg" alt="Técnica de Alstom a bordo de un tren">
+    </div>
+    <div class="company-logo"><img src="https://raw.githubusercontent.com/ayming-france/assets/main/logos/ayming-logo.png" alt="Ayming"></div>
+  </section>
+
+  </main>
+
+  <div class="keyboard-hint">
+    <span><span class="key" id="key-prev">&larr;</span><span class="key" id="key-next">&rarr;</span> Navegar</span>
+    <span><span class="key" id="key-fullscreen">F</span> Pantalla completa</span>
+  </div>
+
+  <script src="https://ayming-france.github.io/assets/engine/slides.js"></script>
+  <script src="https://ayming-france.github.io/assets/engine/lucide.min.js"></script>
+  <script>lucide.createIcons();</script>
+
+</body>
+</html>
